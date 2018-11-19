@@ -60,15 +60,15 @@ void setup () {
   Serial.println();
   Serial.println();
   Serial.print("Connecting");
-//  Serial.println(ssid);
+  //  Serial.println(ssid);
   OLED.setCursor(0, 0);
   OLED.println("Connecting");
-//  OLED.println(ssid);
+  //  OLED.println(ssid);
   OLED.display();
 
   WiFiManager wifiManager;
   //reset settings - for testing
-//  wifiManager.resetSettings();
+  //  wifiManager.resetSettings();
 
   //set callback that gets called when connecting to previous WiFi fails, and enters Access Point mode
   wifiManager.setAPCallback(configModeCallback);
@@ -135,32 +135,23 @@ void displayPrinting()
   OLED.setTextSize(1);
   OLED.clearDisplay();
   OLED.setCursor(0, 0);
-  OLED.print("State:    ");
+  OLED.print("TT: ");
+  OLED.print(api.printerStats.printerTool0TempActual, 1);
+  OLED.print("C  BT: ");
+  OLED.print(api.printerStats.printerBedTempActual, 1);
+  OLED.println("C");
+
   OLED.println(api.printJob.printerState);
 
-  if (api.printJob.progressCompletion <= 0.02)
-  {
-    OLED.print("Tool temp: ");
-    OLED.print(api.printerStats.printerTool0TempActual);
-    OLED.println("C");
-    OLED.print("Bed temp:  ");
-    OLED.print(api.printerStats.printerBedTempActual);
-    OLED.println("C");
-  }
-  else
-  {
+  OLED.println(buf);
+  OLED.print("Complete: ");
+  OLED.print(temp_percent);
+  OLED.println("%");
 
-    OLED.println(buf);
-    OLED.print("Complete: ");
-    OLED.print(temp_percent);
-    OLED.println("%");
+  float bar = ((float)(width - 4) / 100) * (int)temp_percent;
 
-    float bar = ((float)(width - 4) / 100) * (int)temp_percent;
-
-    OLED.fillRect(0, 25, bar , 5, WHITE);
-    OLED.drawRect(0, 25, width, 5, WHITE);
-  }
-
+  OLED.fillRect(0, 25, bar , 5, WHITE);
+  OLED.drawRect(0, 25, width, 5, WHITE);
 
   OLED.display();
   Serial.println(api.printJob.progressCompletion);
@@ -170,18 +161,22 @@ void displayNotPrinting(String state, bool showTemperature)
 {
   OLED.setTextSize(1);
   OLED.clearDisplay();
+  OLED.setTextColor(WHITE);
   OLED.setCursor(0, 0);
   OLED.println("State:");
   OLED.setTextSize(2);
   OLED.println(state);
-  if (showTemperature && api.printerStats.printerBedTempActual > 35)
-  {
-    OLED.setTextSize(1);
-    OLED.print("Bed temp:  ");
-    OLED.print(api.printerStats.printerBedTempActual);
-    OLED.println("C");
-  }
 
+  OLED.setTextSize(1);
+  if (showTemperature)
+  {
+    OLED.print("TT: ");
+    OLED.print(api.printerStats.printerTool0TempActual, 1);
+
+    OLED.print("C  BT: ");
+    OLED.print(api.printerStats.printerBedTempActual, 1);
+    OLED.print("C");
+  }
   OLED.display();
 }
 
