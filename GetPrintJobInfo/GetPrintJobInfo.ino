@@ -1,7 +1,8 @@
+#include <Arduino.h>
+#include <U8g2lib.h>
 
 #include <OctoPrintAPI.h> //This is where the magic happens... shazam!
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include <Wire.h>
 
 #include <Time.h>         //We will need these two just to do some rough time math on the timestamps we get
 #include <TimeLib.h>
@@ -15,8 +16,7 @@
 
 WiFiClient client;
 
-#define OLED_RESET 0  // GPIO0
-Adafruit_SSD1306 OLED(OLED_RESET);
+U8G2_SSD1306_128X64_NONAME_F_SW_I2C u8g2(U8G2_R2, SCL, SDA, U8X8_PIN_NONE);   // All Boards without Reset of the Display
 const unsigned char width = 128;
 
 // You only need to set one of the of follwowing:
@@ -34,12 +34,15 @@ unsigned long api_lasttime = 0;   //last time api request has been done
 void configModeCallback (WiFiManager *myWiFiManager) {
   Serial.println("Entered config mode");
 
-  OLED.clearDisplay();
-  OLED.setCursor(0, 0);
-  OLED.println("Entered config mode");
-  OLED.println(WiFi.softAPIP());
-  OLED.println(myWiFiManager->getConfigPortalSSID());
-  OLED.display();
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_7x13B_tr);
+  u8g2.drawStr(0, 15, "Entered config mode");
+  u8g2.setFont(u8g2_font_6x13_tr);
+  u8g2.setCursor(0, 30);
+  u8g2.print(WiFi.softAPIP());
+  u8g2.setCursor(0, 45);
+  u8g2.print(myWiFiManager->getConfigPortalSSID());
+  u8g2.sendBuffer();
 
   Serial.println(WiFi.softAPIP());
   //if you used auto generated SSID, print it
@@ -49,22 +52,19 @@ void configModeCallback (WiFiManager *myWiFiManager) {
 void setup () {
   Serial.begin(9600);
   delay(10);
-  OLED.begin();
-  OLED.clearDisplay();
-  OLED.setTextWrap(false);
-  OLED.setTextSize(1);
-  OLED.setTextColor(WHITE);
-  OLED.setRotation(2);
+  u8g2.begin();
+
+  u8g2.clearBuffer();
+  u8g2.setFontMode(1);  // Transparent
+  u8g2.setFontDirection(0);
+  u8g2.setFont(u8g2_font_6x13_tr);
+  u8g2.drawStr(0, 30, "Connecting...");
+  u8g2.sendBuffer();
 
   // We start by connecting to a WiFi network
   Serial.println();
   Serial.println();
   Serial.print("Connecting");
-  //  Serial.println(ssid);
-  OLED.setCursor(0, 0);
-  OLED.println("Connecting");
-  //  OLED.println(ssid);
-  OLED.display();
 
   WiFiManager wifiManager;
   //reset settings - for testing
@@ -83,12 +83,14 @@ void setup () {
     ESP.reset();
     delay(1000);
   }
+  u8g2.clearDisplay();
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_7x13B_tr);
+  u8g2.drawStr(0, 30, "Wifi connected to:");
+  u8g2.setFont(u8g2_font_6x13_tr);
 
-  OLED.clearDisplay();
-  OLED.setCursor(10, 10);
-  OLED.println("WiFi connected to");
-  OLED.println(WiFi.SSID());
-  OLED.display();
+  u8g2.drawStr(0, 45, WiFi.SSID().c_str());
+  u8g2.sendBuffer();
 
   //if you get here you have connected to the WiFi
   Serial.println("");
@@ -132,52 +134,42 @@ void displayPrinting()
   Serial.println("----------------------------------------");
   Serial.println();
 
-  OLED.setTextSize(1);
-  OLED.clearDisplay();
-  OLED.setCursor(0, 0);
-  OLED.print("TT: ");
-  OLED.print(api.printerStats.printerTool0TempActual, 1);
-  OLED.print("C  BT: ");
-  OLED.print(api.printerStats.printerBedTempActual, 1);
-  OLED.println("C");
-
-  OLED.println(api.printJob.printerState);
-
-  OLED.println(buf);
-  OLED.print("Complete: ");
-  OLED.print(temp_percent);
-  OLED.println("%");
+  u8g2.clearBuffer();
+  char tempbuf[31];
+  u8g2.setFont(u8g2_font_t0_12_tr);
+  sprintf(tempbuf, "TT: %.1fC  BT: %.1fC", api.printerStats.printerTool0TempActual, api.printerStats.printerBedTempActual);
+  u8g2.drawStr(0, 8, tempbuf);
+  u8g2.setFont(u8g2_font_t0_14_tr);
+  u8g2.drawStr(0, 21, api.printJob.printerState.c_str());
+  u8g2.drawStr(0, 33, buf);
+  u8g2.setCursor(0, 45);
+  u8g2.print("Complete: ");
+  u8g2.print(temp_percent);
+  u8g2.println("%");
 
   float bar = ((float)(width - 4) / 100) * (int)temp_percent;
-
-  OLED.fillRect(0, 25, bar , 5, WHITE);
-  OLED.drawRect(0, 25, width, 5, WHITE);
-
-  OLED.display();
+  u8g2.drawBox(1, 54, bar, 10);
+  u8g2.drawFrame(0, 54, width, 10);
+  u8g2.sendBuffer();
   Serial.println(api.printJob.progressCompletion);
 }
 
 void displayNotPrinting(String state, bool showTemperature)
 {
-  OLED.setTextSize(1);
-  OLED.clearDisplay();
-  OLED.setTextColor(WHITE);
-  OLED.setCursor(0, 0);
-  OLED.println("State:");
-  OLED.setTextSize(2);
-  OLED.println(state);
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_t0_12_tr);
+  u8g2.drawStr(0, 10 , "State:");
+  u8g2.setFont(u8g2_font_t0_22_tr);
+  u8g2.drawStr(0, 35, state.c_str());
 
-  OLED.setTextSize(1);
   if (showTemperature)
   {
-    OLED.print("TT: ");
-    OLED.print(api.printerStats.printerTool0TempActual, 1);
-
-    OLED.print("C  BT: ");
-    OLED.print(api.printerStats.printerBedTempActual, 1);
-    OLED.print("C");
+    char estbuf[31];
+    u8g2.setFont(u8g2_font_t0_12_tr);
+    sprintf(estbuf, "TT: %.1fC BT: %.1fC", api.printerStats.printerTool0TempActual, api.printerStats.printerBedTempActual);
+    u8g2.drawStr(0, 60, estbuf);
   }
-  OLED.display();
+  u8g2.sendBuffer();
 }
 
 void loop() {
